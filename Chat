@@ -1,0 +1,69 @@
+package main
+
+import (
+	"github.com/gorilla/mux"
+	"net/http"
+	"encoding/json"
+	"strconv"
+
+	//"time"
+)
+
+type Message struct {
+	MessageBody string `json:messsagebody`
+	MessageAuthor user `json:messageauthor`
+}
+
+type user struct {
+	Username string `json:username`
+}
+
+var messages []Message = []Message{}
+
+func getMessage (w http.ResponseWriter, r *http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(messages)
+}
+
+func postMessage (w http.ResponseWriter, r *http.Request){
+	w.Header().Set("Content-Type", "application/json")
+	var newMessage Message
+	json.NewDecoder(r.Body).Decode(&newMessage)
+
+	messages = append(messages, newMessage)
+
+	json.NewEncoder(w).Encode(messages)
+}
+
+func deleteMessage (w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var ID string = mux.Vars(r)["messageID"]
+	//error if id is invalid
+	messageID, err := strconv.Atoi(ID)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("could not convert to integer"))
+	}
+	//missing dynamic endpoint
+	if messageID >= len(messages) {
+		w.WriteHeader(404)
+		w.Write([]byte("Could not find endpoint"))
+	}
+
+	messages = append(messages[:messageID], messages[messageID+1:]...)
+
+	w.WriteHeader(200)
+}
+
+func handleRequest () {
+	router := mux.NewRouter()
+	router.HandleFunc("/chat",getMessage).Methods("GET")
+	router.HandleFunc("/chat",postMessage).Methods("POST")
+	router.HandleFunc("/chat/{messageID}",deleteMessage).Methods("DELETE")
+
+	http.ListenAndServe(":8080", router)
+}
+
+func main (){
+	handleRequest()
+}
